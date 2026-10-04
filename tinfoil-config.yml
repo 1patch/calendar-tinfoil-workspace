@@ -1,5 +1,5 @@
-# WORK IN PROGRESS: the deliberately invalid public-key placeholder prevents a
-# release until the dedicated owner key is available. Never insert a secret.
+# Only the prepared owner's public SSH key belongs in this measured configuration.
+# Keep private keys and provider credentials on the trusted calendar host.
 cvm-version: "0.14.8"
 cpus: 2
 memory: 8192
