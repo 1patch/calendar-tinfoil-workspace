@@ -1,17 +1,26 @@
 # Confidential Bash workspace configuration
 
-This public repository contains a configuration-only work in progress. The
-configuration has not been measured, validated against an account, provisioned,
-or tested inside a confidential VM. The public-key placeholder deliberately
-prevents release. Private owner keys and provider credentials do not belong in
-this repository. The calendar application and its private source are not included.
+This repository contains the configuration for one owner's confidential Bash
+computer. Its public SSH key was prepared by the protected calendar operator
+after verifying the existing account. The configuration has not yet been
+measured, validated by the Tinfoil control plane, provisioned, or tested inside a
+confidential VM. The private owner key and provider credentials stay on the
+trusted calendar host. The calendar application and its private source are not included.
 
 ## Scope and pinned inputs
 
-The configuration uses the official `confidential-ubuntu` v0.6.5 image from
-source commit `24c3d5ea361b9111d5c860291e8184989bb1f0b6`, pinned by image digest:
+The configuration uses the official `confidential-ubuntu` v0.6.5 image approved
+by the signed vendor release at commit
+`24c3d5ea361b9111d5c860291e8184989bb1f0b6`, pinned by image digest:
 
 `sha256:3c96130f0c586e5f4b301111624f7dbd4dbb942894611679518fb165496ed917`
+
+The public build ran from its parent commit
+`09dd691155427267fda932a8b31ef79d2f64b37f`; only the configuration image pin
+changed afterward. The Dockerfile and bootstrap are identical across those
+commits. Signed release metadata authenticates the vendor's approval of this
+digest; signed OCI build provenance tying the image to those source files has
+not been verified.
 
 The measured-release action is pinned to
 `tinfoilsh/measure-image-action@cb61fb5c942ae2d99a9316ada725122bd52faccd`.
@@ -23,7 +32,7 @@ RAM. It has no GPU, model pack, persistent volume, provider secret, direct
 inbound port, or debug mode. `/workspace` and `/tmp` are bounded tmpfs mounts.
 Ordinary filesystem state is ephemeral and must be expected to disappear on
 container recreation or CVM reboot. A confirmed stop is a lifecycle assertion,
-not a proof of physical memory erasure. The planned executor closes task stdin;
+not a proof of physical memory erasure. The private executor closes task stdin;
 this configuration disables interactive terminals and SSH forwarding.
 
 The pinned CVM 0.14.8 also stores ordinary container writable layers and image
@@ -130,11 +139,15 @@ identity authenticates login. Fresh attestation and TLS-key pinning authenticate
 the expected workload on every new tunnel connection. `shim.authenticated:false`
 requires no inference/tunnel API key; SSH public-key authentication is mandatory.
 
-## Adapter and acceptance plan
+## Private integration and pending acceptance
 
-Ordinary Container lifecycle differs from native `/api/sandboxes`; this draft
-does not change the calendar's current adapter. A future operator-only adapter
-can retain the existing machine interface with these mappings:
+The private calendar application contains an ordinary-Container execution
+backend and a protected operator setup path. Their source is not included here.
+Activation still requires the measured owner-key release, successful account
+validation and live acceptance. Ordinary Container lifecycle differs from native
+`/api/sandboxes`: the protected operator creates and deploys the machine, while
+the runtime executes commands and stops an already owned machine. Equivalent
+trusted CLI operations are:
 
 | Method | Trusted CLI operation |
 | --- | --- |
@@ -152,9 +165,9 @@ accepted create/deploy response. A stop is confirmed only by an actual Stopped
 record. Failed creation or uncertain transport must retain a recoverable record
 and attempt whole-instance stop without deleting the instance.
 
-Retain NUL-framed script input, a separate script descriptor, closed task stdin,
-sanitized remote environment, the 256 KiB public output budget, timeout limits,
-completion framing, and serialized tenant ownership. The remote environment
+The private executor uses NUL-framed script input, a separate script descriptor,
+closed task stdin, sanitized remote environment, the 256 KiB public output budget,
+timeout limits, completion framing, and serialized tenant ownership. The remote environment
 uses `/root` as HOME and `/workspace` as working directory. The completion frame
 is diagnostic, not an authentication boundary against this privileged owner.
 
@@ -166,10 +179,14 @@ hosts were surfaced and does not prove default CPU placement unavailable.
 After approved source publication and successful account validation, use a fresh synthetic name and verify:
 attestation pin success and wrong-pin rejection; owner-only SSH authentication;
 strict effective SSH server settings; ordinary Bash quoting/stdin/nonzero exit;
-output bounds; absent forwarded credentials; correct workspace tmpfs; timeout
-with a ready detached child; and confirmed whole-instance stop on interruption
-or uncertain cleanup. A later start must show fresh empty ephemeral workspace.
-Do not send user data before those checks pass. These tests have not run.
+output bounds; absent forwarded credentials; correct workspace tmpfs; and
+timeout followed by confirmed whole-instance Stopped status. On interruption
+or uncertain cleanup, require confirmed whole-instance stop. This verifies
+reported lifecycle state; detached-child survival and physical memory erasure
+are not independently tested.
+Do not send user data before those checks pass. Local fixtures have tested the
+private integration, but these acceptance checks have not run against a live
+Tinfoil machine.
 
 Bash commands and results still pass through the trusted calendar host, selected
 inference provider, and existing conversation persistence. A confidential Bash

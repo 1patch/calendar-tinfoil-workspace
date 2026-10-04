@@ -25,7 +25,7 @@ containers:
     ports: ["22:22"]
 
     env:
-      - SSH_KEYS: "REPLACE_WITH_EXACTLY_ONE_DEDICATED_OWNER_ED25519_PUBLIC_KEY"
+      - SSH_KEYS: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATMWIPeWPouM/fcYGnI+avjj4szziZ2oPpZ/PaVjzSN"
 
     # Harden the pinned image's SSH settings before its original PID1 bootstrap
     # installs the measured public key, generates host keys, and starts systemd.
