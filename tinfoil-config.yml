@@ -1,0 +1,85 @@
+# WORK IN PROGRESS: the deliberately invalid public-key placeholder prevents a
+# release until the dedicated owner key is available. Never insert a secret.
+cvm-version: "0.14.8"
+cpus: 2
+memory: 8192
+
+networks:
+  workspace:
+    egress: closed
+
+containers:
+  - name: workspace
+    # Official confidential-ubuntu v0.6.5; source commit:
+    # 24c3d5ea361b9111d5c860291e8184989bb1f0b6
+    image: ghcr.io/tinfoilsh/confidential-ubuntu@sha256:3c96130f0c586e5f4b301111624f7dbd4dbb942894611679518fb165496ed917
+    # One owner administers this entire confidential VM. No other workloads or
+    # provider credentials may be placed inside it.
+    cvm_admin: true
+    read_only: false
+    restart: "no"
+    stop_signal: SIGRTMIN+3
+    stop_timeout: 120
+    pids_limit: 256
+    networks: [workspace]
+    ports: ["22:22"]
+
+    env:
+      - SSH_KEYS: "REPLACE_WITH_EXACTLY_ONE_DEDICATED_OWNER_ED25519_PUBLIC_KEY"
+
+    # Harden the pinned image's SSH settings before its original PID1 bootstrap
+    # installs the measured public key, generates host keys, and starts systemd.
+    entrypoint: ["/bin/bash", "--noprofile", "--norc", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        umask 077
+        cat > /etc/ssh/sshd_config <<'SSHD_CONFIG'
+        Port 22
+        HostKey /etc/ssh/ssh_host_ed25519_key
+        AllowUsers root
+        PermitRootLogin prohibit-password
+        AuthenticationMethods publickey
+        PubkeyAuthentication yes
+        AuthorizedKeysFile /run/authorized_keys
+        AuthorizedKeysCommand none
+        TrustedUserCAKeys none
+        AuthorizedPrincipalsFile none
+        AuthorizedPrincipalsCommand none
+        PasswordAuthentication no
+        KbdInteractiveAuthentication no
+        PermitEmptyPasswords no
+        HostbasedAuthentication no
+        IgnoreRhosts yes
+        UsePAM yes
+        PermitUserEnvironment no
+        DisableForwarding yes
+        AllowAgentForwarding no
+        AllowTcpForwarding no
+        X11Forwarding no
+        PermitTunnel no
+        PermitTTY no
+        PermitUserRC no
+        PrintMotd no
+        LogLevel ERROR
+        Subsystem sftp internal-sftp
+        SSHD_CONFIG
+        exec /entrypoint
+
+    tmpfs:
+      /run: "rw,nosuid,nodev,mode=755,size=64m"
+      /tmp: "rw,nosuid,nodev,mode=1777,size=256m"
+      /workspace: "rw,nosuid,nodev,mode=700,size=256m"
+
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+# SSH travels inside fresh attested TLS through the shim's CONNECT tunnel.
+# No cvm-network inbound port is enabled. No HTTP application is served.
+shim:
+  upstream-port: 22
+  authenticated: false
